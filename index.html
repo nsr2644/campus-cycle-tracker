@@ -28,6 +28,11 @@
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Roll Number</label>
                 <input type="text" id="student-roll" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. 23BCS1002">
             </div>
+            <!-- SECURITY PIN FIELD -->
+            <div>
+                <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Set 4-Digit Security PIN (Only for Issue)</label>
+                <input type="password" id="student-pin" maxlength="4" pattern="\d*" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. 1234">
+            </div>
             
             <!-- Dynamic Action Buttons -->
             <div class="flex gap-3 pt-2">
@@ -40,7 +45,7 @@
             </div>
         </div>
 
-        <!-- Camera Scanner Feed UI -->
+        <!-- Camera Scanner Feed UI (Hidden by Default) -->
         <div id="scanner-section" class="hidden mt-6">
             <div class="bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium px-2.5 py-1.5 rounded-lg text-center mb-4">
                 Scanning Cycle QR Code for: <span id="action-type" class="font-bold underline"></span>
@@ -62,7 +67,7 @@
         </button>
     </div>
 
-    <!-- Admin Panel & Reports Logs Section -->
+    <!-- Admin Panel & Reports Logs Section (Hidden by Default) -->
     <div id="admin-panel" class="hidden bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mt-2 border border-slate-200">
         <div class="flex flex-col gap-3 mb-4">
             <div class="flex justify-between items-center">
@@ -114,9 +119,15 @@
         function startScanner(action) {
             const name = document.getElementById('student-name').value.trim();
             const roll = document.getElementById('student-roll').value.trim();
+            const pin = document.getElementById('student-pin').value.trim();
 
             if (!name || !roll) {
                 alert("Kripya pehle Student Name aur Roll Number dalein!");
+                return;
+            }
+
+            if (action === "ISSUE" && (!pin || pin.length !== 4)) {
+                alert("Cycle issue karne ke liye koi bhi ek naya 4-Digit Security PIN set karein!");
                 return;
             }
 
@@ -148,6 +159,7 @@
         function onScanSuccess(cycleNumber) {
             const inputName = document.getElementById('student-name').value.trim();
             const inputRoll = document.getElementById('student-roll').value.trim();
+            const inputPin = document.getElementById('student-pin').value.trim();
             const sanitizedCycleNum = cycleNumber.trim().toUpperCase();
             const currentTime = new Date().toLocaleString('en-IN');
 
@@ -164,6 +176,7 @@
                         status: "ISSUED",
                         studentName: inputName,
                         studentRoll: inputRoll,
+                        securityPin: inputPin,
                         timestamp: currentTime
                     };
                     
@@ -177,13 +190,23 @@
 
                     localStorage.setItem('cycleStandDB', JSON.stringify(db));
                     localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
-                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you.", 'success');
+                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you. Apna Drop PIN yaad rakhein.", 'success');
+                    document.getElementById('student-pin').value = "";
                 }
             } 
             else if (currentAction === "DROP") {
                 if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
-                    const activeUser = db[sanitizedCycleNum].studentName || inputName;
-                    const activeRoll = db[sanitizedCycleNum].studentRoll || inputRoll;
+                    
+                    const userEnteredPin = prompt("Security Check: Is cycle ko drop karne ke liye apna 4-Digit Security PIN dalein:");
+                    
+                    if (userEnteredPin !== db[sanitizedCycleNum].securityPin) {
+                        showMessage("🚨 <strong>Access Denied!</strong> Galat Security PIN. Aap kisi doosre student ki cycle drop nahi kar sakte.", 'error');
+                        updateLogView();
+                        return;
+                    }
+
+                    const activeUser = db[sanitizedCycleNum].studentName;
+                    const activeRoll = db[sanitizedCycleNum].studentRoll;
 
                     history.push({
                         Date_Time: currentTime,
@@ -199,7 +222,7 @@
                     localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
                     showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> has been safely returned to the stand.", 'success');
                 } else {
-                    showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> database records me already available hai.", 'error');
+                    showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> stand records me pehle se hi available hai.", 'error');
                 }
             }
 
