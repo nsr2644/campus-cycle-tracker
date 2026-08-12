@@ -4,11 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>IIMKashipur Campus Cycle Tracking System</title>
-    <!-- Tailwind CSS for Beautiful UI -->
+    <!-- Tailwind CSS for UI -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Html5Qrcode Library for Mobile Camera Scanning -->
     <script src="https://unpkg.com/html5-qrcode"></script>
-    <!-- MD5 Cryptographic Encryption Library to Hide Password -->
+    <!-- MD5 Cryptographic Encryption Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col items-center p-4 antialiased">
@@ -93,282 +93,278 @@
     </div>
 
     <script>
-    let html5QrcodeScanner = null;
-    let currentAction = ""; 
-    
-    // 🔗 यहाँ अपना Google Apps Script वाला Web App URL पेस्ट करें
-    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbyM5PLzZ8-1xPf2ofDkHYtESOMFGKTE8JJ8cRT2EPrsfQ5VUBurvmuA4tGgJ1bWRzxj/exec";
+        let html5QrcodeScanner = null;
+        let currentAction = ""; 
+        
+        // 🔗 आपकी Google Sheet का एक्टिव Web App URL
+        const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbyM5PLzZ8-1xPf2ofDkHYtESOMFGKTE8JJ8cRT2EPrsfQ5VUBurvmuA4tGgJ1bWRzxj/exec";
 
-    const ADMIN_HASH = "506bf56da5557f564e54b767aa5d785f"; 
+        // Admin Password Hash for "2024"
+        const ADMIN_HASH = "506bf56da5557f564e54b767aa5d785f"; 
 
-    if (!localStorage.getItem('cycleStandDB')) {
-        localStorage.setItem('cycleStandDB', JSON.stringify({}));
-    }
-    if (!localStorage.getItem('cycleHistoryLogs')) {
-        localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
-    }
-
-    function showMessage(text, type) {
-        const msgBox = document.getElementById('msg-box');
-        msgBox.innerHTML = text;
-        msgBox.classList.remove('hidden');
-        if (type === 'error') {
-            msgBox.className = "mt-6 p-4 rounded-xl text-center font-medium text-sm bg-rose-50 text-rose-700 border border-rose-200 block";
-        } else if (type === 'success') {
-            msgBox.className = "mt-6 p-4 rounded-xl text-center font-medium text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 block";
+        // Database Setup in LocalStorage
+        if (!localStorage.getItem('cycleStandDB')) {
+            localStorage.setItem('cycleStandDB', JSON.stringify({}));
         }
-    }
-
-    function startScanner(action) {
-        const name = document.getElementById('student-name').value.trim();
-        const roll = document.getElementById('student-roll').value.trim();
-        const pin = document.getElementById('student-pin').value.trim();
-
-        if (!name || !roll) {
-            alert("Please enter the student's name and roll number first!");
-            return;
+        if (!localStorage.getItem('cycleHistoryLogs')) {
+            localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
         }
 
-        if (action === "ISSUE" && (!pin || pin.length !== 4)) {
-            alert("Set any new 4-digit security PIN to issue a cycle!");
-            return;
+        function showMessage(text, type) {
+            const msgBox = document.getElementById('msg-box');
+            msgBox.innerHTML = text;
+            msgBox.classList.remove('hidden');
+            if (type === 'error') {
+                msgBox.className = "mt-6 p-4 rounded-xl text-center font-medium text-sm bg-rose-50 text-rose-700 border border-rose-200 block";
+            } else if (type === 'success') {
+                msgBox.className = "mt-6 p-4 rounded-xl text-center font-medium text-sm bg-emerald-50 text-emerald-700 border border-emerald-200 block";
+            }
         }
 
-        currentAction = action;
-        document.getElementById('action-type').innerText = action;
-        document.getElementById('form-section').classList.add('hidden');
-        document.getElementById('scanner-section').classList.remove('hidden');
+        function startScanner(action) {
+            const name = document.getElementById('student-name').value.trim();
+            const roll = document.getElementById('student-roll').value.trim();
+            const pin = document.getElementById('student-pin').value.trim();
 
-        html5QrcodeScanner = new Html5Qrcode("reader");
-        html5QrcodeScanner.start(
-            { facingMode: "environment" }, 
-            { fps: 15, qrbox: { width: 220, height: 220 } },
-            onScanSuccess
-        ).catch(err => {
-            alert("Camera access denied or camera not found!");
-            stopScanner();
-        });
-    }
+            if (!name || !roll) {
+                alert("Please enter the student's name and roll number first!");
+                return;
+            }
 
-    function stopScanner() {
-        if (html5QrcodeScanner) {
-            html5QrcodeScanner.stop().then(() => {
-                document.getElementById('scanner-section').classList.add('hidden');
-                document.getElementById('form-section').classList.remove('hidden');
+            if (action === "ISSUE" && (!pin || pin.length !== 4)) {
+                alert("Set any new 4-digit security PIN to issue a cycle!");
+                return;
+            }
+
+            currentAction = action;
+            document.getElementById('action-type').innerText = action;
+            document.getElementById('form-section').classList.add('hidden');
+            document.getElementById('scanner-section').classList.remove('hidden');
+
+            html5QrcodeScanner = new Html5Qrcode("reader");
+            html5QrcodeScanner.start(
+                { facingMode: "environment" }, 
+                { fps: 15, qrbox: { width: 220, height: 220 } },
+                onScanSuccess
+            ).catch(err => {
+                alert("Camera access denied or camera not found!");
+                stopScanner();
             });
         }
-    }
 
-    // 📤 गूगल शीट में डेटा भेजने वाला फ़ंक्शन
-    function sendDataToGoogleSheet(payload) {
-    if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.includes("AKfycbyM5PLzZ8-1xPf2ofDkHYtESOMFGKTE8JJ8cRT2EPrsfQ5VUBurvmuA4tGgJ1bWRzxj")) {
-        alert("Please set your correct Google Sheet Web App URL!");
-        return;
-    }
-
-    // Google Apps Script के साथ सबसे बेहतर काम करने वाला Fetch तरीका
-    fetch(GOOGLE_SHEET_URL, {
-        method: "POST",
-        mode: "no-cors", 
-        headers: {
-            "Content-Type": "text/plain;charset=utf-8",
-        },
-        body: JSON.stringify(payload)
-    })
-    .then(() => {
-        console.log("Data sent to Google Sheet successfully!");
-    })
-    .catch(err => {
-        console.error("Error sending data:", err);
-    });
-}
-
-    function onScanSuccess(cycleNumber) {
-        const inputName = document.getElementById('student-name').value.trim();
-        const inputRoll = document.getElementById('student-roll').value.trim();
-        const inputPin = document.getElementById('student-pin').value.trim();
-        const sanitizedCycleNum = cycleNumber.trim().toUpperCase();
-        const currentTime = new Date().toLocaleString('en-IN');
-
-        let db = JSON.parse(localStorage.getItem('cycleStandDB'));
-        let history = JSON.parse(localStorage.getItem('cycleHistoryLogs'));
-        stopScanner();
-
-        if (currentAction === "ISSUE") {
-            if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
-                var errorMsg = "🚨 <strong>This cycle is already issued!</strong><br>Cycle <b>" + sanitizedCycleNum + "</b> currently has been taken by " + db[sanitizedCycleNum].studentName + " (Roll: " + db[sanitizedCycleNum].studentRoll + ")!";
-                showMessage(errorMsg, 'error');
-            } else {
-                db[sanitizedCycleNum] = {
-                    status: "ISSUED",
-                    studentName: inputName,
-                    studentRoll: inputRoll,
-                    securityPin: inputPin, 
-                    timestamp: currentTime
-                };
-                
-                const logData = {
-                    Date_Time: currentTime,
-                    Action: "ISSUE",
-                    Cycle_No: sanitizedCycleNum,
-                    Student_Name: inputName,
-                    Roll_No: inputRoll,
-                    Security_Pin: inputPin
-                };
-
-                history.push(logData);
-
-                localStorage.setItem('cycleStandDB', JSON.stringify(db));
-                localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
-
-                // 🚀 गूगल शीट में डेटा भेजें
-                sendDataToGoogleSheet(logData);
-
-                showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you. Remember your drop pin.", 'success');
-                document.getElementById('student-pin').value = ""; 
+        function stopScanner() {
+            if (html5QrcodeScanner) {
+                html5QrcodeScanner.stop().then(() => {
+                    document.getElementById('scanner-section').classList.add('hidden');
+                    document.getElementById('form-section').classList.remove('hidden');
+                });
             }
-        } 
-        else if (currentAction === "DROP") {
-            if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
-                
-                const userEnteredPin = prompt("Security Check: Enter your 4-digit security PIN to drop off this cycle:");
-                
-                if (userEnteredPin !== db[sanitizedCycleNum].securityPin) {
-                    showMessage("🚨 <strong>Access Denied!</strong> Incorrect security PIN. You cannot drop off another student's cycle.", 'error');
-                    updateLogView();
+        }
+
+        // 📤 गूगल शीट में डेटा भेजने का फंक्शन
+        function sendDataToGoogleSheet(payload) {
+            fetch(GOOGLE_SHEET_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: {
+                    "Content-Type": "text/plain;charset=utf-8",
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(() => {
+                console.log("Data sent to Google Sheet successfully!");
+            })
+            .catch(err => {
+                console.error("Error sending to Google Sheet:", err);
+            });
+        }
+
+        function onScanSuccess(cycleNumber) {
+            const inputName = document.getElementById('student-name').value.trim();
+            const inputRoll = document.getElementById('student-roll').value.trim();
+            const inputPin = document.getElementById('student-pin').value.trim();
+            const sanitizedCycleNum = cycleNumber.trim().toUpperCase();
+            const currentTime = new Date().toLocaleString('en-IN');
+
+            let db = JSON.parse(localStorage.getItem('cycleStandDB'));
+            let history = JSON.parse(localStorage.getItem('cycleHistoryLogs'));
+            stopScanner();
+
+            if (currentAction === "ISSUE") {
+                if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
+                    var errorMsg = "🚨 <strong>This cycle is already issued!</strong><br>Cycle <b>" + sanitizedCycleNum + "</b> currently has been taken by " + db[sanitizedCycleNum].studentName + " (Roll: " + db[sanitizedCycleNum].studentRoll + ")!";
+                    showMessage(errorMsg, 'error');
+                } else {
+                    db[sanitizedCycleNum] = {
+                        status: "ISSUED",
+                        studentName: inputName,
+                        studentRoll: inputRoll,
+                        securityPin: inputPin, 
+                        timestamp: currentTime
+                    };
+
+                    const logData = {
+                        Date_Time: currentTime,
+                        Action: "ISSUE",
+                        Cycle_No: sanitizedCycleNum,
+                        Student_Name: inputName,
+                        Roll_No: inputRoll,
+                        Security_Pin: inputPin
+                    };
+                    
+                    history.push(logData);
+
+                    localStorage.setItem('cycleStandDB', JSON.stringify(db));
+                    localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
+
+                    // 🚀 गूगल शीट पर डेटा भेजें
+                    sendDataToGoogleSheet(logData);
+
+                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you. Remember your drop pin.", 'success');
+                    document.getElementById('student-pin').value = ""; 
+                }
+            } 
+            else if (currentAction === "DROP") {
+                if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
+                    
+                    const userEnteredPin = prompt("Security Check: Enter your 4-digit security PIN to drop off this cycle:");
+                    
+                    if (userEnteredPin !== db[sanitizedCycleNum].securityPin) {
+                        showMessage("🚨 <strong>Access Denied!</strong> Incorrect security PIN. You cannot drop off another student's cycle.", 'error');
+                        updateLogView();
+                        return;
+                    }
+
+                    const activeUser = db[sanitizedCycleNum].studentName;
+                    const activeRoll = db[sanitizedCycleNum].studentRoll;
+                    const activePin = db[sanitizedCycleNum].securityPin;
+
+                    const logData = {
+                        Date_Time: currentTime,
+                        Action: "DROP/RETURN",
+                        Cycle_No: sanitizedCycleNum,
+                        Student_Name: activeUser,
+                        Roll_No: activeRoll,
+                        Security_Pin: activePin
+                    };
+
+                    history.push(logData);
+                    db[sanitizedCycleNum].status = "AVAILABLE";
+
+                    localStorage.setItem('cycleStandDB', JSON.stringify(db));
+                    localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
+
+                    // 🚀 गूगल शीट पर डेटा भेजें
+                    sendDataToGoogleSheet(logData);
+
+                    showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> has been safely returned to the stand.", 'success');
+                } else {
+                    showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> is already available in the cycle stand records.", 'error');
+                }
+            }
+
+            updateLogView();
+        }
+
+        function updateLogView() {
+            const db = JSON.parse(localStorage.getItem('cycleStandDB'));
+            const container = document.getElementById('log-list');
+            container.innerHTML = "";
+            
+            let activeCount = 0;
+            for (let id in db) {
+                if (db[id].status === "ISSUED") {
+                    activeCount++;
+                    container.innerHTML += 
+                        '<div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-1 text-xs">' +
+                            '<div class="flex justify-between items-center">' +
+                                '<span class="font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded text-[10px] tracking-wide">' + id + '</span>' +
+                                '<span class="text-slate-400 text-[10px]">' + db[id].timestamp + '</span>' +
+                            '</div>' +
+                            '<p class="text-slate-600 font-medium"><span class="text-slate-400">Issued to:</span> ' + db[id].studentName + ' (' + db[id].studentRoll + ')</p>' +
+                        '</div>';
+                }
+            }
+            if(activeCount === 0) {
+                container.innerHTML = "<p class='text-slate-400 text-center py-4 text-xs italic'>All cycles are inside the stand.</p>";
+            }
+        }
+
+        function toggleAdminPanel() {
+            const panel = document.getElementById('admin-panel');
+            if (panel.classList.contains('hidden')) {
+                const userPassword = prompt("Please enter the admin security password:");
+                if (userPassword !== null) {
+                    if (md5(userPassword) === ADMIN_HASH) {
+                        panel.classList.remove('hidden');
+                    } else {
+                        alert("Wrong Password! Access Denied.");
+                    }
+                }
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        function exportToExcel() {
+            const verify = prompt("Security Check: Re-enter password:");
+            if (verify !== null) {
+                if (md5(verify) !== ADMIN_HASH) {
+                    alert("Unauthorized Access!");
                     return;
                 }
-
-                const activeUser = db[sanitizedCycleNum].studentName;
-                const activeRoll = db[sanitizedCycleNum].studentRoll;
-                const activePin = db[sanitizedCycleNum].securityPin;
-
-                const logData = {
-                    Date_Time: currentTime,
-                    Action: "DROP/RETURN",
-                    Cycle_No: sanitizedCycleNum,
-                    Student_Name: activeUser,
-                    Roll_No: activeRoll,
-                    Security_Pin: activePin
-                };
-
-                history.push(logData);
-                db[sanitizedCycleNum].status = "AVAILABLE";
-
-                localStorage.setItem('cycleStandDB', JSON.stringify(db));
-                localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
-
-                // 🚀 गूगल शीट में डेटा भेजें
-                sendDataToGoogleSheet(logData);
-
-                showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> has been safely returned to the stand.", 'success');
             } else {
-                showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> is already available in the cycle stand records.", 'error');
+                return;
+            }
+
+            const history = JSON.parse(localStorage.getItem('cycleHistoryLogs'));
+            if (!history || history.length === 0) {
+                alert("There is no historical data in the database to download yet!");
+                return;
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
+            csvContent += "Date & Time,Action,Cycle Number,Student Name,Roll Number,Security PIN\n";
+
+            history.forEach(row => {
+                const dt = row.Date_Time || "N/A";
+                const act = row.Action || "N/A";
+                const cNo = row.Cycle_No || "N/A";
+                const sName = row.Student_Name || "N/A";
+                const rNo = row.Roll_No || "N/A";
+                const pinNum = row.Security_Pin || "N/A";
+
+                csvContent += '"' + dt + '","' + act + '","' + cNo + '","' + sName + '","' + rNo + '","' + pinNum + '"\n';
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "Campus_Cycle_Master_Report.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function clearSystemData() {
+            const verify = prompt("Enter the admin password to confirm:");
+            if (verify !== null) {
+                if (md5(verify) === ADMIN_HASH) {
+                    if(confirm("Do you really want to permanently delete all tracking and log data?")) {
+                        localStorage.setItem('cycleStandDB', JSON.stringify({}));
+                        localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
+                        updateLogView();
+                        document.getElementById('admin-panel').classList.add('hidden');
+                        document.getElementById('msg-box').classList.add('hidden');
+                        alert("Database Successfully Cleared!");
+                    }
+                } else {
+                    alert("Wrong Password!");
+                }
             }
         }
 
         updateLogView();
-    }
-
-    function updateLogView() {
-        const db = JSON.parse(localStorage.getItem('cycleStandDB'));
-        const container = document.getElementById('log-list');
-        container.innerHTML = "";
-        
-        let activeCount = 0;
-        for (let id in db) {
-            if (db[id].status === "ISSUED") {
-                activeCount++;
-                container.innerHTML += 
-                    '<div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-1 text-xs">' +
-                        '<div class="flex justify-between items-center">' +
-                            '<span class="font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded text-[10px] tracking-wide">' + id + '</span>' +
-                            '<span class="text-slate-400 text-[10px]">' + db[id].timestamp + '</span>' +
-                        '</div>' +
-                        '<p class="text-slate-600 font-medium"><span class="text-slate-400">Issued to:</span> ' + db[id].studentName + ' (' + db[id].studentRoll + ')</p>' +
-                    '</div>';
-            }
-        }
-        if(activeCount === 0) {
-            container.innerHTML = "<p class='text-slate-400 text-center py-4 text-xs italic'>All cycles are inside the stand.</p>";
-        }
-    }
-
-    function toggleAdminPanel() {
-        const panel = document.getElementById('admin-panel');
-        if (panel.classList.contains('hidden')) {
-            const userPassword = prompt("Please enter the admin security password:");
-            if (userPassword !== null) {
-                if (md5(userPassword) === ADMIN_HASH) {
-                    panel.classList.remove('hidden');
-                } else {
-                    alert("Wrong Password! Access Denied.");
-                }
-            }
-        } else {
-            panel.classList.add('hidden');
-        }
-    }
-
-    function exportToExcel() {
-        const verify = prompt("Security Check: Re-enter password:");
-        if (verify !== null) {
-            if (md5(verify) !== ADMIN_HASH) {
-                alert("Unauthorized Access!");
-                return;
-            }
-        } else {
-            return;
-        }
-
-        const history = JSON.parse(localStorage.getItem('cycleHistoryLogs'));
-        if (!history || history.length === 0) {
-            alert("There is no historical data in the database to download yet!");
-            return;
-        }
-
-        let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-        csvContent += "Date & Time,Action,Cycle Number,Student Name,Roll Number,Security PIN\n";
-
-        history.forEach(row => {
-            const dt = row.Date_Time || "N/A";
-            const act = row.Action || "N/A";
-            const cNo = row.Cycle_No || "N/A";
-            const sName = row.Student_Name || "N/A";
-            const rNo = row.Roll_No || "N/A";
-            const pinNum = row.Security_Pin || "N/A";
-
-            csvContent += '"' + dt + '","' + act + '","' + cNo + '","' + sName + '","' + rNo + '","' + pinNum + '"\n';
-        });
-
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", "Campus_Cycle_Master_Report.csv");
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    }
-
-    function clearSystemData() {
-        const verify = prompt("Enter the admin password to confirm:");
-        if (verify !== null) {
-            if (md5(verify) === ADMIN_HASH) {
-                if(confirm("Do you really want to permanently delete all tracking and log data?")) {
-                    localStorage.setItem('cycleStandDB', JSON.stringify({}));
-                    localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
-                    updateLogView();
-                    document.getElementById('admin-panel').classList.add('hidden');
-                    document.getElementById('msg-box').classList.add('hidden');
-                    alert("Database Successfully Cleared!");
-                }
-            } else {
-                alert("Wrong Password!");
-            }
-        }
-    }
-
-    updateLogView();
-</script>
+    </script>
 </body>
 </html>
