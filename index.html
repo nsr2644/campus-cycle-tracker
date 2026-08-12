@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Campus Cycle Tracking System</title>
+    <title>IIMKashipur Campus Cycle Tracking System</title>
     <!-- Tailwind CSS for Beautiful UI -->
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Html5Qrcode Library for Mobile Camera Scanning -->
@@ -22,7 +22,7 @@
         <div class="space-y-4" id="form-section">
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Student Full Name</label>
-                <input type="text" id="student-name" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. Nareshwar Singh Rawat">
+                <input type="text" id="student-name" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. Amit Kumar">
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Roll Number</label>
@@ -122,12 +122,12 @@
             const pin = document.getElementById('student-pin').value.trim();
 
             if (!name || !roll) {
-                alert("Kripya pehle Student Name aur Roll Number dalein!");
+                alert("Please enter the student's name and roll number first!");
                 return;
             }
 
             if (action === "ISSUE" && (!pin || pin.length !== 4)) {
-                alert("Cycle issue karne ke liye koi bhi ek naya 4-Digit Security PIN set karein!");
+                alert("Set any new 4-digit security PIN to issue a bicycle!");
                 return;
             }
 
@@ -191,17 +191,17 @@
 
                     localStorage.setItem('cycleStandDB', JSON.stringify(db));
                     localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
-                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you. Apna Drop PIN yaad rakhein.", 'success');
+                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you. Remember your drop pin.", 'success');
                     document.getElementById('student-pin').value = ""; 
                 }
             } 
             else if (currentAction === "DROP") {
                 if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
                     
-                    const userEnteredPin = prompt("Security Check: Is cycle ko drop karne ke liye apna 4-Digit Security PIN dalein:");
+                    const userEnteredPin = prompt("Security Check: Enter your 4-digit security PIN to drop off this bicycle:");
                     
                     if (userEnteredPin !== db[sanitizedCycleNum].securityPin) {
-                        showMessage("🚨 <strong>Access Denied!</strong> Galat Security PIN. Aap kisi doosre student ki cycle drop nahi kar sakte.", 'error');
+                        showMessage("🚨 <strong>Access Denied!</strong> Incorrect security PIN. You cannot drop off another student's bicycle.", 'error');
                         updateLogView();
                         return;
                     }
@@ -225,7 +225,7 @@
                     localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
                     showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> has been safely returned to the stand.", 'success');
                 } else {
-                    showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> stand records me pehle se hi available hai.", 'error');
+                    showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> is already available in the cycle stand records.", 'error');
                 }
             }
 
