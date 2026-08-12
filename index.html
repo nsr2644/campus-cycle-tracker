@@ -97,7 +97,7 @@
     let currentAction = ""; 
     
     // 🔗 यहाँ अपना Google Apps Script वाला Web App URL पेस्ट करें
-    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbyFPLtHcePQC_D5EJ6Tvo2C5PztHcuknpfT0PGUPO-E4i3sIuenVYaV-agCja-0NO0/exec";
+    const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbyM5PLzZ8-1xPf2ofDkHYtESOMFGKTE8JJ8cRT2EPrsfQ5VUBurvmuA4tGgJ1bWRzxj/exec";
 
     const ADMIN_HASH = "506bf56da5557f564e54b767aa5d785f"; 
 
@@ -161,24 +161,27 @@
 
     // 📤 गूगल शीट में डेटा भेजने वाला फ़ंक्शन
     function sendDataToGoogleSheet(payload) {
-        if (GOOGLE_SHEET_URL.includes("AKfycbyFPLtHcePQC_D5EJ6Tvo2C5PztHcuknpfT0PGUPO-E4i3sIuenVYaV-agCja-0NO0")) {
-            console.warn("Google Sheet URL is not set!");
-            return;
-        }
-
-        fetch(GOOGLE_SHEET_URL, {
-            method: "POST",
-            mode: "no-cors",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify(payload)
-        }).then(() => {
-            console.log("Data successfully sent to Google Sheet!");
-        }).catch(err => {
-            console.error("Error sending to Google Sheet:", err);
-        });
+    if (!GOOGLE_SHEET_URL || GOOGLE_SHEET_URL.includes("AKfycbyM5PLzZ8-1xPf2ofDkHYtESOMFGKTE8JJ8cRT2EPrsfQ5VUBurvmuA4tGgJ1bWRzxj")) {
+        alert("Please set your correct Google Sheet Web App URL!");
+        return;
     }
+
+    // Google Apps Script के साथ सबसे बेहतर काम करने वाला Fetch तरीका
+    fetch(GOOGLE_SHEET_URL, {
+        method: "POST",
+        mode: "no-cors", 
+        headers: {
+            "Content-Type": "text/plain;charset=utf-8",
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(() => {
+        console.log("Data sent to Google Sheet successfully!");
+    })
+    .catch(err => {
+        console.error("Error sending data:", err);
+    });
+}
 
     function onScanSuccess(cycleNumber) {
         const inputName = document.getElementById('student-name').value.trim();
