@@ -8,6 +8,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
     <!-- Html5Qrcode Library for Mobile Camera Scanning -->
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <!-- MD5 Cryptographic Encryption Library to Hide Password -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js"></script>
 </head>
 <body class="bg-slate-100 min-h-screen flex flex-col items-center p-4 antialiased">
 
@@ -22,7 +24,7 @@
         <div class="space-y-4" id="form-section">
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Student Full Name</label>
-                <input type="text" id="student-name" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. Amit Kumar">
+                <input type="text" id="student-name" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. Amit Sharma">
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Roll Number</label>
@@ -94,8 +96,8 @@
         let html5QrcodeScanner = null;
         let currentAction = ""; 
         
-        // ADMIN SYSTEM CONFIGURATION
-        const ADMIN_PASSWORD = "ADMIN123"; 
+        // 🔒 UPDATED CRYTOGRAPHIC TOKEN FOR PASSWORD "Hostel@#$$742"
+        const ADMIN_HASH = "506bf56da5557f564e54b767aa5d785f"; 
 
         // Database Configuration Setup in LocalStorage
         if (!localStorage.getItem('cycleStandDB')) {
@@ -127,7 +129,7 @@
             }
 
             if (action === "ISSUE" && (!pin || pin.length !== 4)) {
-                alert("Set any new 4-digit security PIN to issue a bicycle!");
+                alert("Set any new 4-digit security PIN to issue a cycle!");
                 return;
             }
 
@@ -198,10 +200,10 @@
             else if (currentAction === "DROP") {
                 if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
                     
-                    const userEnteredPin = prompt("Security Check: Enter your 4-digit security PIN to drop off this bicycle:");
+                    const userEnteredPin = prompt("Security Check: Enter your 4-digit security PIN to drop off this cycle:");
                     
                     if (userEnteredPin !== db[sanitizedCycleNum].securityPin) {
-                        showMessage("🚨 <strong>Access Denied!</strong> Incorrect security PIN. You cannot drop off another student's bicycle.", 'error');
+                        showMessage("🚨 <strong>Access Denied!</strong> Incorrect security PIN. You cannot drop off another student's cycle.", 'error');
                         updateLogView();
                         return;
                     }
@@ -260,10 +262,12 @@
             const panel = document.getElementById('admin-panel');
             if (panel.classList.contains('hidden')) {
                 const userPassword = prompt("Please enter the admin security password:");
-                if (userPassword === ADMIN_PASSWORD) {
-                    panel.classList.remove('hidden');
-                } else if (userPassword !== null) {
-                    alert("Wrong Password! Access Denied.");
+                if (userPassword !== null) {
+                    if (md5(userPassword) === ADMIN_HASH) {
+                        panel.classList.remove('hidden');
+                    } else {
+                        alert("Wrong Password! Access Denied.");
+                    }
                 }
             } else {
                 panel.classList.add('hidden');
@@ -272,8 +276,12 @@
 
         function exportToExcel() {
             const verify = prompt("Security Check: Re-enter password:");
-            if (verify !== ADMIN_PASSWORD) {
-                alert("Unauthorized Access!");
+            if (verify !== null) {
+                if (md5(verify) !== ADMIN_HASH) {
+                    alert("Unauthorized Access!");
+                    return;
+                }
+            } else {
                 return;
             }
 
@@ -292,7 +300,7 @@
                 const cNo = row.Cycle_No || "N/A";
                 const sName = row.Student_Name || "N/A";
                 const rNo = row.Roll_No || "N/A";
-                const pinNum = row.Security_Pin || "N/A"; 
+                const pinNum = row.Security_Pin || "N/A";
 
                 csvContent += '"' + dt + '","' + act + '","' + cNo + '","' + sName + '","' + rNo + '","' + pinNum + '"\n';
             });
@@ -308,17 +316,19 @@
 
         function clearSystemData() {
             const verify = prompt("Enter the admin password to confirm:");
-            if (verify === ADMIN_PASSWORD) {
-                if(confirm("Do you really want to permanently delete all tracking and log data?")) {
-                    localStorage.setItem('cycleStandDB', JSON.stringify({}));
-                    localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
-                    updateLogView();
-                    document.getElementById('admin-panel').classList.add('hidden');
-                    document.getElementById('msg-box').classList.add('hidden');
-                    alert("Database Successfully Cleared!");
+            if (verify !== null) {
+                if (md5(verify) === ADMIN_HASH) {
+                    if(confirm("Do you really want to permanently delete all tracking and log data?")) {
+                        localStorage.setItem('cycleStandDB', JSON.stringify({}));
+                        localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
+                        updateLogView();
+                        document.getElementById('admin-panel').classList.add('hidden');
+                        document.getElementById('msg-box').classList.add('hidden');
+                        alert("Database Successfully Cleared!");
+                    }
+                } else {
+                    alert("Wrong Password!");
                 }
-            } else {
-                alert("Wrong Password!");
             }
         }
 
