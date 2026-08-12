@@ -259,7 +259,7 @@
         function toggleAdminPanel() {
             const panel = document.getElementById('admin-panel');
             if (panel.classList.contains('hidden')) {
-                const userPassword = prompt("Kripya Admin Security Password dalein:");
+                const userPassword = prompt("Please enter the admin security password:");
                 if (userPassword === ADMIN_PASSWORD) {
                     panel.classList.remove('hidden');
                 } else if (userPassword !== null) {
@@ -271,7 +271,7 @@
         }
 
         function exportToExcel() {
-            const verify = prompt("Security Check: Password re-enter karein:");
+            const verify = prompt("Security Check: Re-enter password:");
             if (verify !== ADMIN_PASSWORD) {
                 alert("Unauthorized Access!");
                 return;
@@ -279,7 +279,7 @@
 
             const history = JSON.parse(localStorage.getItem('cycleHistoryLogs'));
             if (!history || history.length === 0) {
-                alert("Abhi tak database me koi history data nahi hai download karne ke liye!");
+                alert("There is no historical data in the database to download yet!");
                 return;
             }
 
@@ -307,9 +307,9 @@
         }
 
         function clearSystemData() {
-            const verify = prompt("Confirm karne ke liye Admin Password dalein:");
+            const verify = prompt("Enter the admin password to confirm:");
             if (verify === ADMIN_PASSWORD) {
-                if(confirm("Kya aap sach me saara tracking aur logs data permanently delete karna chahte hain?")) {
+                if(confirm("Do you really want to permanently delete all tracking and log data?")) {
                     localStorage.setItem('cycleStandDB', JSON.stringify({}));
                     localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
                     updateLogView();
