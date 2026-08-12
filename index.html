@@ -80,14 +80,19 @@
     <!-- Public Live Dashboard for Everyone -->
     <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mt-4 border border-slate-200">
         <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Currently Issued Cycles</h3>
-        <div id="log-list" class="space-y-2"></div>
+        <div id="log-list" class="space-y-2">
+            <!-- Dynamic JavaScript Content Hooks -->
+        </div>
     </div>
 
     <script>
         let html5QrcodeScanner = null;
         let currentAction = ""; 
+        
+        // ADMIN SYSTEM CONFIGURATION
         const ADMIN_PASSWORD = "ADMIN123"; 
 
+        // Database Configuration Setup in LocalStorage
         if (!localStorage.getItem('cycleStandDB')) {
             localStorage.setItem('cycleStandDB', JSON.stringify({}));
         }
@@ -109,10 +114,12 @@
         function startScanner(action) {
             const name = document.getElementById('student-name').value.trim();
             const roll = document.getElementById('student-roll').value.trim();
+
             if (!name || !roll) {
                 alert("Kripya pehle Student Name aur Roll Number dalein!");
                 return;
             }
+
             currentAction = action;
             document.getElementById('action-type').innerText = action;
             document.getElementById('form-section').classList.add('hidden');
@@ -150,7 +157,8 @@
 
             if (currentAction === "ISSUE") {
                 if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
-                    showMessage(`🚨 <strong>This cycle is already issued!</strong><br>Cycle <b>${sanitizedCycleNum}</b> currently has been taken by ${db[sanitizedCycleNum].studentName} (Roll: ${db[sanitizedCycleNum].studentRoll})!`, 'error');
+                    var errorMsg = "🚨 <strong>This cycle is already issued!</strong><br>Cycle <b>" + sanitizedCycleNum + "</b> currently has been taken by " + db[sanitizedCycleNum].studentName + " (Roll: " + db[sanitizedCycleNum].studentRoll + ")!";
+                    showMessage(errorMsg, 'error');
                 } else {
                     db[sanitizedCycleNum] = {
                         status: "ISSUED",
@@ -158,6 +166,7 @@
                         studentRoll: inputRoll,
                         timestamp: currentTime
                     };
+                    
                     history.push({
                         Date_Time: currentTime,
                         Action: "ISSUE",
@@ -165,15 +174,17 @@
                         Student_Name: inputName,
                         Roll_No: inputRoll
                     });
+
                     localStorage.setItem('cycleStandDB', JSON.stringify(db));
                     localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
-                    showMessage(`🎉 Success! Cycle <b>${sanitizedCycleNum}</b> has been assigned to you.`, 'success');
+                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you.", 'success');
                 }
             } 
             else if (currentAction === "DROP") {
                 if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
                     const activeUser = db[sanitizedCycleNum].studentName || inputName;
                     const activeRoll = db[sanitizedCycleNum].studentRoll || inputRoll;
+
                     history.push({
                         Date_Time: currentTime,
                         Action: "DROP/RETURN",
@@ -181,14 +192,17 @@
                         Student_Name: activeUser,
                         Roll_No: activeRoll
                     });
+
                     db[sanitizedCycleNum].status = "AVAILABLE";
+
                     localStorage.setItem('cycleStandDB', JSON.stringify(db));
                     localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
-                    showMessage(`✅ Cycle <b>${sanitizedCycleNum}</b> has been safely returned to the stand.`, 'success');
+                    showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> has been safely returned to the stand.", 'success');
                 } else {
-                    showMessage(`❌ Operation Failed: Cycle <b>${sanitizedCycleNum}</b> database records me already available hai.`, 'error');
+                    showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> database records me already available hai.", 'error');
                 }
             }
+
             updateLogView();
         }
 
@@ -196,19 +210,19 @@
             const db = JSON.parse(localStorage.getItem('cycleStandDB'));
             const container = document.getElementById('log-list');
             container.innerHTML = "";
+            
             let activeCount = 0;
             for (let id in db) {
                 if (db[id].status === "ISSUED") {
                     activeCount++;
-                    container.innerHTML += `
-                        <div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-1 text-xs">
-                            <div class="flex justify-between items-center">
-                                <span class="font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded text-[10px] tracking-wide">${id}</span>
-                                <span class="text-slate-400 text-[10px]">${db[id].timestamp}</span>
-                            </div>
-                            <p class="text-slate-600 font-medium"><span class="text-slate-400">Issued to:</span> ${db[id].studentName} (${db[id].studentRoll})</p>
-                        </div>
-                    `;
+                    container.innerHTML += 
+                        '<div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-1 text-xs">' +
+                            '<div class="flex justify-between items-center">' +
+                                '<span class="font-bold text-slate-700 bg-slate-200 px-2 py-0.5 rounded text-[10px] tracking-wide">' + id + '</span>' +
+                                '<span class="text-slate-400 text-[10px]">' + db[id].timestamp + '</span>' +
+                            '</div>' +
+                            '<p class="text-slate-600 font-medium"><span class="text-slate-400">Issued to:</span> ' + db[id].studentName + ' (' + db[id].studentRoll + ')</p>' +
+                        '</div>';
                 }
             }
             if(activeCount === 0) {
@@ -236,11 +250,13 @@
                 alert("Unauthorized Access!");
                 return;
             }
+
             const history = JSON.parse(localStorage.getItem('cycleHistoryLogs'));
             if (!history || history.length === 0) {
                 alert("Abhi tak database me koi history data nahi hai download karne ke liye!");
                 return;
             }
+
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
             csvContent += "Date & Time,Action,Cycle Number,Student Name,Roll Number\n";
 
@@ -250,6 +266,7 @@
                 const cNo = row.Cycle_No || "N/A";
                 const sName = row.Student_Name || "N/A";
                 const rNo = row.Roll_No || "N/A";
+
                 csvContent += '"' + dt + '","' + act + '","' + cNo + '","' + sName + '","' + rNo + '"\n';
             });
 
@@ -277,6 +294,7 @@
                 alert("Wrong Password!");
             }
         }
+
         updateLogView();
     </script>
 </body>
