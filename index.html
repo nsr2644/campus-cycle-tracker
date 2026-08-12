@@ -22,11 +22,11 @@
         <div class="space-y-4" id="form-section">
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Student Full Name</label>
-                <input type="text" id="student-name" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. Amit Kumar">
+                <input type="text" id="student-name" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. Nareshwar Singh Rawat">
             </div>
             <div>
                 <label class="block text-xs font-bold uppercase tracking-wider text-slate-500">Roll Number</label>
-                <input type="text" id="student-roll" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. 23BCS1002">
+                <input type="text" id="student-roll" class="w-full mt-1 p-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none text-sm transition" placeholder="e.g. MBA26026">
             </div>
             <!-- SECURITY PIN FIELD -->
             <div>
@@ -45,7 +45,7 @@
             </div>
         </div>
 
-        <!-- Camera Scanner Feed UI (Hidden by Default) -->
+        <!-- Camera Scanner Feed UI -->
         <div id="scanner-section" class="hidden mt-6">
             <div class="bg-blue-50 border border-blue-200 text-blue-800 text-xs font-medium px-2.5 py-1.5 rounded-lg text-center mb-4">
                 Scanning Cycle QR Code for: <span id="action-type" class="font-bold underline"></span>
@@ -67,7 +67,7 @@
         </button>
     </div>
 
-    <!-- Admin Panel & Reports Logs Section (Hidden by Default) -->
+    <!-- Admin Panel & Reports Logs Section -->
     <div id="admin-panel" class="hidden bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mt-2 border border-slate-200">
         <div class="flex flex-col gap-3 mb-4">
             <div class="flex justify-between items-center">
@@ -176,7 +176,7 @@
                         status: "ISSUED",
                         studentName: inputName,
                         studentRoll: inputRoll,
-                        securityPin: inputPin,
+                        securityPin: inputPin, 
                         timestamp: currentTime
                     };
                     
@@ -185,13 +185,14 @@
                         Action: "ISSUE",
                         Cycle_No: sanitizedCycleNum,
                         Student_Name: inputName,
-                        Roll_No: inputRoll
+                        Roll_No: inputRoll,
+                        Security_Pin: inputPin
                     });
 
                     localStorage.setItem('cycleStandDB', JSON.stringify(db));
                     localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
                     showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you. Apna Drop PIN yaad rakhein.", 'success');
-                    document.getElementById('student-pin').value = "";
+                    document.getElementById('student-pin').value = ""; 
                 }
             } 
             else if (currentAction === "DROP") {
@@ -207,13 +208,15 @@
 
                     const activeUser = db[sanitizedCycleNum].studentName;
                     const activeRoll = db[sanitizedCycleNum].studentRoll;
+                    const activePin = db[sanitizedCycleNum].securityPin;
 
                     history.push({
                         Date_Time: currentTime,
                         Action: "DROP/RETURN",
                         Cycle_No: sanitizedCycleNum,
                         Student_Name: activeUser,
-                        Roll_No: activeRoll
+                        Roll_No: activeRoll,
+                        Security_Pin: activePin
                     });
 
                     db[sanitizedCycleNum].status = "AVAILABLE";
@@ -281,7 +284,7 @@
             }
 
             let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            csvContent += "Date & Time,Action,Cycle Number,Student Name,Roll Number\n";
+            csvContent += "Date & Time,Action,Cycle Number,Student Name,Roll Number,Security PIN\n";
 
             history.forEach(row => {
                 const dt = row.Date_Time || "N/A";
@@ -289,8 +292,9 @@
                 const cNo = row.Cycle_No || "N/A";
                 const sName = row.Student_Name || "N/A";
                 const rNo = row.Roll_No || "N/A";
+                const pinNum = row.Security_Pin || "N/A"; 
 
-                csvContent += '"' + dt + '","' + act + '","' + cNo + '","' + sName + '","' + rNo + '"\n';
+                csvContent += '"' + dt + '","' + act + '","' + cNo + '","' + sName + '","' + rNo + '","' + pinNum + '"\n';
             });
 
             const encodedUri = encodeURI(csvContent);
