@@ -90,7 +90,7 @@
         let currentAction = ""; 
         
         // ADMIN SYSTEM CONFIGURATION
-        const ADMIN_PASSWORD = "ADMIN123"; // <-- Is password ko aap apni marzi se change kar sakte hain
+        const ADMIN_PASSWORD = "ADMIN123"; 
 
         // Database Configuration Setup in LocalStorage
         if (!localStorage.getItem('cycleStandDB')) {
@@ -146,8 +146,8 @@
         }
 
         function onScanSuccess(cycleNumber) {
-            const name = document.getElementById('student-name').value.trim();
-            const roll = document.getElementById('student-roll').value.trim();
+            const inputName = document.getElementById('student-name').value.trim();
+            const inputRoll = document.getElementById('student-roll').value.trim();
             const sanitizedCycleNum = cycleNumber.trim().toUpperCase();
             const currentTime = new Date().toLocaleString('en-IN');
 
@@ -161,8 +161,8 @@
                 } else {
                     db[sanitizedCycleNum] = {
                         status: "ISSUED",
-                        studentName: name,
-                        studentRoll: roll,
+                        studentName: inputName,
+                        studentRoll: inputRoll,
                         timestamp: currentTime
                     };
                     
@@ -170,8 +170,8 @@
                         Date_Time: currentTime,
                         Action: "ISSUE",
                         Cycle_No: sanitizedCycleNum,
-                        Student_Name: name,
-                        Roll_No: roll
+                        Student_Name: inputName,
+                        Roll_No: inputRoll
                     });
 
                     localStorage.setItem('cycleStandDB', JSON.stringify(db));
@@ -181,12 +181,16 @@
             } 
             else if (currentAction === "DROP") {
                 if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
+                    // Extract existing student info before marking it available
+                    const activeUser = db[sanitizedCycleNum].studentName || inputName;
+                    const activeRoll = db[sanitizedCycleNum].studentRoll || inputRoll;
+
                     history.push({
                         Date_Time: currentTime,
                         Action: "DROP/RETURN",
                         Cycle_No: sanitizedCycleNum,
-                        Student_Name: db[sanitizedCycleNum].studentName,
-                        Roll_No: db[sanitizedCycleNum].studentRoll
+                        Student_Name: activeUser,
+                        Roll_No: activeRoll
                     });
 
                     db[sanitizedCycleNum].status = "AVAILABLE";
@@ -258,7 +262,13 @@
             csvContent += "Date & Time,Action,Cycle Number,Student Name,Roll Number\n";
 
             history.forEach(row => {
-                csvContent += `"\${row.Date_Time}","\${row.Action}","\${row.Cycle_No}","\${row.Student_Name}","\${row.Roll_No}"\n`;
+                const dt = row.Date_Time || "N/A";
+                const act = row.Action || "N/A";
+                const cNo = row.Cycle_No || "N/A";
+                const sName = row.Student_Name || "N/A";
+                const rNo = row.Roll_No || "N/A";
+
+                csvContent += `"\${dt}","\${act}","\${cNo}","${sName}","${rNo}"\n`;
             });
 
             const encodedUri = encodeURI(csvContent);
