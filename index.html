@@ -38,10 +38,10 @@
             
             <!-- Dynamic Action Buttons -->
             <div class="flex gap-3 pt-2">
-                <button onclick="startScanner('ISSUE')" class="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-emerald-600/20 cursor-pointer">
+                <button onclick="handleScanInitiation('ISSUE')" class="w-1/2 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-emerald-600/20 cursor-pointer">
                     Scan to ISSUE
                 </button>
-                <button onclick="startScanner('DROP')" class="w-1/2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-amber-500/20 cursor-pointer">
+                <button onclick="handleScanInitiation('DROP')" class="w-1/2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-3.5 rounded-xl transition shadow-lg shadow-amber-500/20 cursor-pointer">
                     Scan to DROP
                 </button>
             </div>
@@ -74,12 +74,9 @@
         <div class="flex flex-col gap-3 mb-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600">Admin Control Panel</h2>
-                <button onclick="clearSystemData()" class="text-xs text-red-500 hover:underline">Reset Local Data</button>
             </div>
-            
-            <!-- SECURED EXCEL EXPORT BUTTON -->
             <button onclick="exportToExcel()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-xl text-sm flex items-center justify-center gap-2 shadow-md transition cursor-pointer">
-                📊 Secure Excel Download (.csv)
+                📊 Open Live Google Sheet
             </button>
         </div>
     </div>
@@ -98,12 +95,12 @@
     <script>
         let html5QrcodeScanner = null;
         let currentAction = ""; 
-        let globalIssuedCycles = {}; // Cloud State
-        
-        // 🔗 Dynamic Google Sheet Deployment Web App URL
-        const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbww34_cEkxo5jKHIURM1wmQxKuJ7V6lRfg07rILui60Tnw2dtbNLdruy-UcejN5s_-C/exec";
+        let globalIssuedCycles = {};
+        let userLocation = { lat: "N/A", lng: "N/A" };
 
-        // Admin Password Hash for "2024"
+        // 🔗 Google Apps Script Deployment Web App URL
+        const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbyM5PLzZ8-1xPf2ofDkHYtESOMFGKTE8JJ8cRT2EPrsfQ5VUBurvmuA4tGgJ1bWRzxj/exec";
+
         const ADMIN_HASH = "506bf56da5557f564e54b767aa5d785f"; 
 
         function showMessage(text, type) {
@@ -117,7 +114,8 @@
             }
         }
 
-        function startScanner(action) {
+        // 📍 Get Current GPS Location of User
+        function handleScanInitiation(action) {
             const name = document.getElementById('student-name').value.trim();
             const roll = document.getElementById('student-roll').value.trim();
             const pin = document.getElementById('student-pin').value.trim();
@@ -132,6 +130,26 @@
                 return;
             }
 
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        userLocation.lat = position.coords.latitude;
+                        userLocation.lng = position.coords.longitude;
+                        startScanner(action);
+                    },
+                    (error) => {
+                        console.warn("Location permission denied or unavailable:", error.message);
+                        alert("Location access is recommended for tracking. Proceeding with default location...");
+                        startScanner(action);
+                    },
+                    { enableHighAccuracy: true, timeout: 5000 }
+                );
+            } else {
+                startScanner(action);
+            }
+        }
+
+        function startScanner(action) {
             currentAction = action;
             document.getElementById('action-type').innerText = action;
             document.getElementById('form-section').classList.add('hidden');
@@ -157,31 +175,32 @@
             }
         }
 
-        // Send Data to Google Sheet
-        async function sendDataToGoogleSheet(payload) {
-            try {
-                await fetch(GOOGLE_SHEET_URL, {
-                    method: "POST",
-                    mode: "no-cors",
-                    headers: { "Content-Type": "text/plain;charset=utf-8" },
-                    body: JSON.stringify(payload)
-                });
-                setTimeout(fetchLiveDashboard, 1000); // Sync live view after save
-            } catch(err) {
-                console.error("Error syncing to Google Sheet:", err);
-            }
+        function sendDataToGoogleSheet(payload) {
+            fetch(GOOGLE_SHEET_URL, {
+                method: "POST",
+                mode: "no-cors",
+                headers: { "Content-Type": "text/plain;charset=utf-8" },
+                body: JSON.stringify(payload)
+            }).then(() => {
+                setTimeout(fetchLiveDashboard, 1500);
+            }).catch(err => {
+                console.error("Error sending data:", err);
+            });
         }
 
-        // 🌐 Fetch Live Dashboard Data From Google Sheet (for all devices)
-        async function fetchLiveDashboard() {
-            try {
-                const res = await fetch(GOOGLE_SHEET_URL);
-                const data = await res.json();
-                globalIssuedCycles = data;
-                renderDashboard(data);
-            } catch(err) {
-                console.error("Fetch Live Error:", err);
-            }
+        function fetchLiveDashboard() {
+            fetch(GOOGLE_SHEET_URL, { redirect: "follow" })
+                .then(response => {
+                    if (!response.ok) throw new Error('Network error');
+                    return response.json();
+                })
+                .then(data => {
+                    globalIssuedCycles = data;
+                    renderDashboard(data);
+                })
+                .catch(err => {
+                    console.error("Fetch Live Error:", err);
+                });
         }
 
         function renderDashboard(db) {
@@ -192,6 +211,10 @@
             for (let id in db) {
                 if (db[id] && db[id].status === "ISSUED") {
                     activeCount++;
+                    const mapBtn = (db[id].lat !== "N/A" && db[id].mapUrl) 
+                        ? `<a href="${db[id].mapUrl}" target="_blank" class="text-[10px] text-blue-600 hover:underline font-semibold flex items-center gap-1 mt-1">📍 View Issue Location</a>` 
+                        : '';
+
                     container.innerHTML += 
                         '<div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-1 text-xs">' +
                             '<div class="flex justify-between items-center">' +
@@ -199,6 +222,7 @@
                                 '<span class="text-slate-400 text-[10px]">' + db[id].timestamp + '</span>' +
                             '</div>' +
                             '<p class="text-slate-600 font-medium"><span class="text-slate-400">Issued to:</span> ' + db[id].studentName + ' (' + db[id].studentRoll + ')</p>' +
+                            mapBtn +
                         '</div>';
                 }
             }
@@ -227,11 +251,13 @@
                         Cycle_No: sanitizedCycleNum,
                         Student_Name: inputName,
                         Roll_No: inputRoll,
-                        Security_Pin: inputPin
+                        Security_Pin: inputPin,
+                        Latitude: userLocation.lat,
+                        Longitude: userLocation.lng
                     };
 
                     sendDataToGoogleSheet(logData);
-                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> requested for ISSUE. Live sync updating...", 'success');
+                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> issued with location.", 'success');
                     document.getElementById('student-pin').value = ""; 
                 }
             } 
@@ -255,11 +281,13 @@
                         Cycle_No: sanitizedCycleNum,
                         Student_Name: activeUser,
                         Roll_No: activeRoll,
-                        Security_Pin: activePin
+                        Security_Pin: activePin,
+                        Latitude: userLocation.lat,
+                        Longitude: userLocation.lng
                     };
 
                     sendDataToGoogleSheet(logData);
-                    showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> drop request received. Live sync updating...", 'success');
+                    showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> dropped off with location.", 'success');
                 } else {
                     showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> is already available in records.", 'error');
                 }
@@ -283,27 +311,11 @@
         }
 
         function exportToExcel() {
-            const verify = prompt("Security Check: Re-enter password:");
-            if (verify !== null) {
-                if (md5(verify) !== ADMIN_HASH) {
-                    alert("Unauthorized Access!");
-                    return;
-                }
-            } else {
-                return;
-            }
-
             window.open(GOOGLE_SHEET_URL, '_blank');
         }
 
-        function clearSystemData() {
-            alert("To clear central Google Sheet data, please delete rows directly from your Google Sheet.");
-        }
-
-        // Initialize Live Data Fetching
+        // Initialize Live Data Sync
         fetchLiveDashboard();
-        
-        // Auto-refresh live data every 5 seconds across all devices
         setInterval(fetchLiveDashboard, 5000);
     </script>
 </body>
