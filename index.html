@@ -74,7 +74,7 @@
         <div class="flex flex-col gap-3 mb-4">
             <div class="flex justify-between items-center">
                 <h2 class="text-sm font-bold uppercase tracking-wider text-slate-600">Admin Control Panel</h2>
-                <button onclick="clearSystemData()" class="text-xs text-red-500 hover:underline">Reset System Data</button>
+                <button onclick="clearSystemData()" class="text-xs text-red-500 hover:underline">Reset Local Data</button>
             </div>
             
             <!-- SECURED EXCEL EXPORT BUTTON -->
@@ -86,29 +86,25 @@
 
     <!-- Public Live Dashboard for Everyone -->
     <div class="bg-white p-6 rounded-2xl shadow-xl w-full max-w-md mt-4 border border-slate-200">
-        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">Currently Issued Cycles</h3>
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-xs font-bold uppercase tracking-wider text-slate-400">Currently Issued Cycles (Live)</h3>
+            <span id="sync-indicator" class="text-[10px] text-emerald-600 font-semibold animate-pulse">● Live Sync</span>
+        </div>
         <div id="log-list" class="space-y-2">
-            <!-- Dynamic JavaScript Content Hooks -->
+            <p class="text-slate-400 text-center py-4 text-xs italic">Loading live cycle data...</p>
         </div>
     </div>
 
     <script>
         let html5QrcodeScanner = null;
         let currentAction = ""; 
+        let globalIssuedCycles = {}; // Cloud State
         
-        // 🔗 आपकी Google Sheet का एक्टिव Web App URL
+        // 🔗 Dynamic Google Sheet Deployment Web App URL
         const GOOGLE_SHEET_URL = "https://script.google.com/macros/s/AKfycbyM5PLzZ8-1xPf2ofDkHYtESOMFGKTE8JJ8cRT2EPrsfQ5VUBurvmuA4tGgJ1bWRzxj/exec";
 
         // Admin Password Hash for "2024"
         const ADMIN_HASH = "506bf56da5557f564e54b767aa5d785f"; 
-
-        // Database Setup in LocalStorage
-        if (!localStorage.getItem('cycleStandDB')) {
-            localStorage.setItem('cycleStandDB', JSON.stringify({}));
-        }
-        if (!localStorage.getItem('cycleHistoryLogs')) {
-            localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
-        }
 
         function showMessage(text, type) {
             const msgBox = document.getElementById('msg-box');
@@ -161,119 +157,40 @@
             }
         }
 
-        // 📤 गूगल शीट में डेटा भेजने का फंक्शन
-        function sendDataToGoogleSheet(payload) {
-            fetch(GOOGLE_SHEET_URL, {
-                method: "POST",
-                mode: "no-cors",
-                headers: {
-                    "Content-Type": "text/plain;charset=utf-8",
-                },
-                body: JSON.stringify(payload)
-            })
-            .then(() => {
-                console.log("Data sent to Google Sheet successfully!");
-            })
-            .catch(err => {
-                console.error("Error sending to Google Sheet:", err);
-            });
-        }
-
-        function onScanSuccess(cycleNumber) {
-            const inputName = document.getElementById('student-name').value.trim();
-            const inputRoll = document.getElementById('student-roll').value.trim();
-            const inputPin = document.getElementById('student-pin').value.trim();
-            const sanitizedCycleNum = cycleNumber.trim().toUpperCase();
-            const currentTime = new Date().toLocaleString('en-IN');
-
-            let db = JSON.parse(localStorage.getItem('cycleStandDB'));
-            let history = JSON.parse(localStorage.getItem('cycleHistoryLogs'));
-            stopScanner();
-
-            if (currentAction === "ISSUE") {
-                if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
-                    var errorMsg = "🚨 <strong>This cycle is already issued!</strong><br>Cycle <b>" + sanitizedCycleNum + "</b> currently has been taken by " + db[sanitizedCycleNum].studentName + " (Roll: " + db[sanitizedCycleNum].studentRoll + ")!";
-                    showMessage(errorMsg, 'error');
-                } else {
-                    db[sanitizedCycleNum] = {
-                        status: "ISSUED",
-                        studentName: inputName,
-                        studentRoll: inputRoll,
-                        securityPin: inputPin, 
-                        timestamp: currentTime
-                    };
-
-                    const logData = {
-                        Date_Time: currentTime,
-                        Action: "ISSUE",
-                        Cycle_No: sanitizedCycleNum,
-                        Student_Name: inputName,
-                        Roll_No: inputRoll,
-                        Security_Pin: inputPin
-                    };
-                    
-                    history.push(logData);
-
-                    localStorage.setItem('cycleStandDB', JSON.stringify(db));
-                    localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
-
-                    // 🚀 गूगल शीट पर डेटा भेजें
-                    sendDataToGoogleSheet(logData);
-
-                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> has been assigned to you. Remember your drop pin.", 'success');
-                    document.getElementById('student-pin').value = ""; 
-                }
-            } 
-            else if (currentAction === "DROP") {
-                if (db[sanitizedCycleNum] && db[sanitizedCycleNum].status === "ISSUED") {
-                    
-                    const userEnteredPin = prompt("Security Check: Enter your 4-digit security PIN to drop off this cycle:");
-                    
-                    if (userEnteredPin !== db[sanitizedCycleNum].securityPin) {
-                        showMessage("🚨 <strong>Access Denied!</strong> Incorrect security PIN. You cannot drop off another student's cycle.", 'error');
-                        updateLogView();
-                        return;
-                    }
-
-                    const activeUser = db[sanitizedCycleNum].studentName;
-                    const activeRoll = db[sanitizedCycleNum].studentRoll;
-                    const activePin = db[sanitizedCycleNum].securityPin;
-
-                    const logData = {
-                        Date_Time: currentTime,
-                        Action: "DROP/RETURN",
-                        Cycle_No: sanitizedCycleNum,
-                        Student_Name: activeUser,
-                        Roll_No: activeRoll,
-                        Security_Pin: activePin
-                    };
-
-                    history.push(logData);
-                    db[sanitizedCycleNum].status = "AVAILABLE";
-
-                    localStorage.setItem('cycleStandDB', JSON.stringify(db));
-                    localStorage.setItem('cycleHistoryLogs', JSON.stringify(history));
-
-                    // 🚀 गूगल शीट पर डेटा भेजें
-                    sendDataToGoogleSheet(logData);
-
-                    showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> has been safely returned to the stand.", 'success');
-                } else {
-                    showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> is already available in the cycle stand records.", 'error');
-                }
+        // Send Data to Google Sheet
+        async function sendDataToGoogleSheet(payload) {
+            try {
+                await fetch(GOOGLE_SHEET_URL, {
+                    method: "POST",
+                    mode: "no-cors",
+                    headers: { "Content-Type": "text/plain;charset=utf-8" },
+                    body: JSON.stringify(payload)
+                });
+                setTimeout(fetchLiveDashboard, 1000); // Sync live view after save
+            } catch(err) {
+                console.error("Error syncing to Google Sheet:", err);
             }
-
-            updateLogView();
         }
 
-        function updateLogView() {
-            const db = JSON.parse(localStorage.getItem('cycleStandDB'));
+        // 🌐 Fetch Live Dashboard Data From Google Sheet (for all devices)
+        async function fetchLiveDashboard() {
+            try {
+                const res = await fetch(GOOGLE_SHEET_URL);
+                const data = await res.json();
+                globalIssuedCycles = data;
+                renderDashboard(data);
+            } catch(err) {
+                console.error("Fetch Live Error:", err);
+            }
+        }
+
+        function renderDashboard(db) {
             const container = document.getElementById('log-list');
             container.innerHTML = "";
             
             let activeCount = 0;
             for (let id in db) {
-                if (db[id].status === "ISSUED") {
+                if (db[id] && db[id].status === "ISSUED") {
                     activeCount++;
                     container.innerHTML += 
                         '<div class="p-3 bg-slate-50 border border-slate-200 rounded-xl flex flex-col gap-1 text-xs">' +
@@ -287,6 +204,65 @@
             }
             if(activeCount === 0) {
                 container.innerHTML = "<p class='text-slate-400 text-center py-4 text-xs italic'>All cycles are inside the stand.</p>";
+            }
+        }
+
+        function onScanSuccess(cycleNumber) {
+            const inputName = document.getElementById('student-name').value.trim();
+            const inputRoll = document.getElementById('student-roll').value.trim();
+            const inputPin = document.getElementById('student-pin').value.trim();
+            const sanitizedCycleNum = cycleNumber.trim().toUpperCase();
+            const currentTime = new Date().toLocaleString('en-IN');
+
+            stopScanner();
+
+            if (currentAction === "ISSUE") {
+                if (globalIssuedCycles[sanitizedCycleNum] && globalIssuedCycles[sanitizedCycleNum].status === "ISSUED") {
+                    var errorMsg = "🚨 <strong>This cycle is already issued!</strong><br>Cycle <b>" + sanitizedCycleNum + "</b> currently has been taken by " + globalIssuedCycles[sanitizedCycleNum].studentName + " (Roll: " + globalIssuedCycles[sanitizedCycleNum].studentRoll + ")!";
+                    showMessage(errorMsg, 'error');
+                } else {
+                    const logData = {
+                        Date_Time: currentTime,
+                        Action: "ISSUE",
+                        Cycle_No: sanitizedCycleNum,
+                        Student_Name: inputName,
+                        Roll_No: inputRoll,
+                        Security_Pin: inputPin
+                    };
+
+                    sendDataToGoogleSheet(logData);
+                    showMessage("🎉 Success! Cycle <b>" + sanitizedCycleNum + "</b> requested for ISSUE. Live sync updating...", 'success');
+                    document.getElementById('student-pin').value = ""; 
+                }
+            } 
+            else if (currentAction === "DROP") {
+                if (globalIssuedCycles[sanitizedCycleNum] && globalIssuedCycles[sanitizedCycleNum].status === "ISSUED") {
+                    
+                    const userEnteredPin = prompt("Security Check: Enter your 4-digit security PIN to drop off this cycle:");
+                    
+                    if (userEnteredPin !== String(globalIssuedCycles[sanitizedCycleNum].securityPin)) {
+                        showMessage("🚨 <strong>Access Denied!</strong> Incorrect security PIN. You cannot drop off another student's cycle.", 'error');
+                        return;
+                    }
+
+                    const activeUser = globalIssuedCycles[sanitizedCycleNum].studentName;
+                    const activeRoll = globalIssuedCycles[sanitizedCycleNum].studentRoll;
+                    const activePin = globalIssuedCycles[sanitizedCycleNum].securityPin;
+
+                    const logData = {
+                        Date_Time: currentTime,
+                        Action: "DROP/RETURN",
+                        Cycle_No: sanitizedCycleNum,
+                        Student_Name: activeUser,
+                        Roll_No: activeRoll,
+                        Security_Pin: activePin
+                    };
+
+                    sendDataToGoogleSheet(logData);
+                    showMessage("✅ Cycle <b>" + sanitizedCycleNum + "</b> drop request received. Live sync updating...", 'success');
+                } else {
+                    showMessage("❌ Operation Failed: Cycle <b>" + sanitizedCycleNum + "</b> is already available in records.", 'error');
+                }
             }
         }
 
@@ -317,54 +293,18 @@
                 return;
             }
 
-            const history = JSON.parse(localStorage.getItem('cycleHistoryLogs'));
-            if (!history || history.length === 0) {
-                alert("There is no historical data in the database to download yet!");
-                return;
-            }
-
-            let csvContent = "data:text/csv;charset=utf-8,\uFEFF"; 
-            csvContent += "Date & Time,Action,Cycle Number,Student Name,Roll Number,Security PIN\n";
-
-            history.forEach(row => {
-                const dt = row.Date_Time || "N/A";
-                const act = row.Action || "N/A";
-                const cNo = row.Cycle_No || "N/A";
-                const sName = row.Student_Name || "N/A";
-                const rNo = row.Roll_No || "N/A";
-                const pinNum = row.Security_Pin || "N/A";
-
-                csvContent += '"' + dt + '","' + act + '","' + cNo + '","' + sName + '","' + rNo + '","' + pinNum + '"\n';
-            });
-
-            const encodedUri = encodeURI(csvContent);
-            const link = document.createElement("a");
-            link.setAttribute("href", encodedUri);
-            link.setAttribute("download", "Campus_Cycle_Master_Report.csv");
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
+            window.open(GOOGLE_SHEET_URL, '_blank');
         }
 
         function clearSystemData() {
-            const verify = prompt("Enter the admin password to confirm:");
-            if (verify !== null) {
-                if (md5(verify) === ADMIN_HASH) {
-                    if(confirm("Do you really want to permanently delete all tracking and log data?")) {
-                        localStorage.setItem('cycleStandDB', JSON.stringify({}));
-                        localStorage.setItem('cycleHistoryLogs', JSON.stringify([]));
-                        updateLogView();
-                        document.getElementById('admin-panel').classList.add('hidden');
-                        document.getElementById('msg-box').classList.add('hidden');
-                        alert("Database Successfully Cleared!");
-                    }
-                } else {
-                    alert("Wrong Password!");
-                }
-            }
+            alert("To clear central Google Sheet data, please delete rows directly from your Google Sheet.");
         }
 
-        updateLogView();
+        // Initialize Live Data Fetching
+        fetchLiveDashboard();
+        
+        // Auto-refresh live data every 5 seconds across all devices
+        setInterval(fetchLiveDashboard, 5000);
     </script>
 </body>
 </html>
